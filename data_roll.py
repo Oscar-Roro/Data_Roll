@@ -1,4 +1,3 @@
-# analyze_clusters_vs_power.py
 import numpy as np
 import pandas as pd
 import re
@@ -19,13 +18,13 @@ print("folder being used:",folder,"\n")
 
 # --- Modifiable values
 THRESHOLD = np.arange(104,110,1) # Maxminimum value for masking 
-connectivity = 1 # Number of neighbors necessary to include in one cluster
+CONNECTIVITY = 1 # Number of neighbors necessary to include in one cluster
 
 # --- parsear nombre de archivo : 
 # gn{gain}_n{fotograms}_t{exposure-time-in-sec}_gate_DDG_width{gate-width-in-sec}_{date}_{time-of-acquisition}.npz ---
 # ex : gn1_n1_t0p2_gate_DDG_width5p00e-03_2025-10-07_15-40
 def parse_fname(name):
-    fname = os.path.basename(name)
+    fname = os.path.basename(name)    # basename of '/foo/bar/item' returns 'item'
     # Pattern to match filenames like:
     # gn4095_n1_t0p001_gate_DDG_width1p00e-05_2025-10-27_17-38.npz
     pattern = (
@@ -72,14 +71,18 @@ def count_clusters(img, thr, connectivity):
 
 # --- Reads file and collects its variables, then returns them as  
 def process_file(npz_path, thr,connectivity):
-    # power_uW, texp_ms, tgate_ns = parse_fname(npz_path.name) #old
+    # Get the measure's variables from the file's name
     gain,npics,texp_s,gate_width_s,date,time = parse_fname(npz_path.name)
-    data = np.load(npz_path)["images"]  # (N, 600, 600) <-old comment #NpzFile (numpy.ndarray) with keys: "images" 
+    # Load the data file as an array (N_frames, Px_hight, Px_length) 
+    data = np.load(npz_path)["images"]  # #NpzFile (numpy.ndarray) (N, 600, 600) with keys: "images" 
+    # Proceed to count cluster in data array
     counts = [count_clusters(data[i], thr,connectivity) for i in range(data.shape[0])] #old
-    # np.asarray(counts) #Test of debugging counts SHOULD MAKE COUNTS INTO ITERATION FOR N FRAMES, BUT MAYBE TOO MUCH RAM USAGE
-    # print("COUNTS:",counts, " type(COUNTS)",type(counts)) #Test of debugging counts
-    # for test in counts: #Test of debugging counts
-    #     print(type(test)) #Test of debugging counts
+    # Some debbuging options
+    if False: # Debbuging 'counts' and 'label' function    
+        # np.asarray(counts) #Test of debugging counts SHOULD MAKE COUNTS INTO ITERATION FOR N FRAMES, BUT MAYBE TOO MUCH RAM USAGE
+        # print("COUNTS:",counts, " type(COUNTS)",type(counts)) #Test of debugging counts
+        # for test in counts: #Test of debugging counts
+        #     print(type(test)) #Test of debugging counts
     if False: # Debugging
         print("\n type(data):",type(data),"data.shape:",data.shape)
         print("\n",data.shape[0],"frames procesados de tamaño",data.shape,"data.dtype:",data.dtype)
@@ -90,6 +93,7 @@ def process_file(npz_path, thr,connectivity):
         x=data
         # print("what ddfof=0 does:",np.sqrt((((x-np.mean(x))**2)/len(x)).sum()))
         # print("what ddfof=1 does:", np.sqrt((((x-np.mean(x))**2)/(len(x)-1)).sum()))
+    # Return library with experiment's variables as keys
     return {
         "file": npz_path.name,
         "gain": gain,
@@ -106,22 +110,26 @@ def process_file(npz_path, thr,connectivity):
 
  # --- Processes all files and saves data to csv. Also has iteration over threshold values. Returns DataFrame for manipulation in here
 def make_csv(connectivity,threshold,out_csv = folder/"clusters_vs_power.csv",):
-    rows = [] #Contains dictionnary : {'file','gain','npics','texp_s','gate_width_s', 'date','threshold','n_frames','n_clusters','n_clusters_mean''n_clusters_std'}
-    files = sorted(folder.glob("*.npz")) #find all .npz files in the folder and sorts them alphabetically 
+    rows = [] # Contains dictionnary : {'file','gain','npics','texp_s','gate_width_s', 'date','threshold',
+    #    'n_frames','n_clusters','n_clusters_mean''n_clusters_std'}
+    files = sorted(folder.glob("*.npz")) # Finds all .npz files in folder and sorts them alphabetically 
+    # --- Loop to process all files and save info into 'rows' (LIST)
     if type(threshold) != list :
         for f in tqdm(files, desc="Procesando"): # Loop over .npz files
             rows.append(process_file(f, threshold,connectivity))
-    if type(threshold) == list :
+    if type(threshold) == list : # In case we sweep through Threshold values
         for thr in threshold:
             for f in tqdm(files, desc="Procesando"): # Loop over .npz files
                 rows.append(process_file(f, thr,connectivity)) # Iterate over threshold
+    # -- Convert 'rows' into a DataFrame
     df = pd.DataFrame(rows)
     if False: # Debugging
         print("rows dictionnary:",rows,"\n")
         print("DataFrame from make_csv fctº:\n",df)
+    # --- Save DataFrame in .csv for future analysis
     df.to_csv(out_csv, index=False)
     print("CSV guardado en:", out_csv,"\n")
-    return df #so you can reuse it later without reloading the file
+    return df #  To reuse it in same code without need of reloading csv file
 
 #STOPPED HERE REDDID ALL PREVIOUS CODE, ADDED N_CLUSTER AND POSSIBILITY FOR LIST OF THRESHOLD VALUES AS WELL AS VARYING CONNECTIVITY
 #  APPART FRM CONTINUING REVSNG THE PLOTS, CHECK ALSO HOW THE CSV FILE IS SAVED AND WHERE AND WIT WHICH NAME
@@ -358,7 +366,7 @@ if __name__ == "__main__":
         fig, axs = plt.subplots(nrows = 1,
                         ncols = 2,figsize= (13, 10),layout="constrained")
         fig.suptitle(f"Threshold:{thresh}")
-        df = make_csv(connectivity,thresh,out_csv = folder/"cluster_vs_exposure-time.csv")             # procesa y guarda
+        df = make_csv(CONNECTIVITY,thresh,out_csv = folder/"cluster_vs_exposure-time.csv")             # procesa y guarda
         plot_exposure_vs_clusters(df,thresh,axs[0])    # plotea exposure vs clusters 
         plot_gate_vs_clusters(df,thresh,axs[1])
 
@@ -370,7 +378,7 @@ if __name__ == "__main__":
         plt.tight_layout()
 
     threshold = 106
-    df = make_csv(connectivity,threshold,out_csv = folder/"cluster_vs_exposure-time.csv")
+    df = make_csv(CONNECTIVITY,threshold,out_csv = folder/"cluster_vs_exposure-time.csv")
     plot_histograms(df, threshold, var="n_clusters_mean")
     plot_histograms(df, threshold, var="n_clusters_mean", group_var="")
     plot_histograms(df, threshold, var="n_clusters_mean", group_var="gate_width_s")
