@@ -19,6 +19,7 @@ print("folder being used:",folder,"\n")
 # --- Modifiable values
 THRESHOLD = np.arange(104,110,1) # Maxminimum value for masking 
 CONNECTIVITY = 1 # Number of neighbors necessary to include in one cluster
+MIN_SIZE_CLUSTER = 9 #Min nbr of neighbors to count a cluster
 
 # --- parsear nombre de archivo : 
 # gn{gain}_n{fotograms}_t{exposure-time-in-sec}_gate_DDG_width{gate-width-in-sec}_{date}_{time-of-acquisition}.npz ---
@@ -45,8 +46,9 @@ def parse_fname(name):
     return gain,npics,texp_s,gate_width_s,date,time
 
 # --- Function using label used for counting clusters
-def count_clusters(img, thr, connectivity):
+def count_clusters(img, thr, connectivity,min_size_= MIN_SIZE_CLUSTER):
     mask = img > thr
+    labeled = rmv(mask, min_size=min_size_)
     labeled = label(mask, connectivity=connectivity)
     if False: # For debugging
         print("img[0,425:435]:",img[0,425:435])
