@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 import os
 import sys
+from skimage.morphology import remove_small_objects as rmv
 from skimage.measure import label
 import matplotlib.pyplot as plt
 from tqdm import tqdm
